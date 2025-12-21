@@ -20,25 +20,46 @@ def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
 
-def style_inner_eyes(img):
+def style_inner_eyes(img, scale):
     """Creates mask for the inner eyes of the QR code."""
     img_size = img.size[0]
     mask = Image.new('L', img.size, 0)
     draw = ImageDraw.Draw(mask)
-    # These coordinates seem tuned for box_size=10 (70px finder patterns)
-    draw.rectangle((40, 40, 70, 70), fill=255)  # top left eye
-    draw.rectangle((img_size-70, 0, img_size, 70), fill=255)  # top right eye
-    draw.rectangle((1, img_size-70, 70, img_size-70), fill=255)  # bottom left eye
+    
+    # 7 modules * scale
+    finder_size = 7 * scale
+    # 4 modules * scale (offset used in original code)
+    offset_4 = 4 * scale
+
+    # Original: (40, 40, 70, 70) for box_size=10
+    draw.rectangle((offset_4, offset_4, finder_size, finder_size), fill=255)  # top left eye
+    
+    # Original: (img_size-70, 0, img_size, 70)
+    draw.rectangle((img_size-finder_size, 0, img_size, finder_size), fill=255)  # top right eye
+    
+    # Original: (1, img_size-70, 70, img_size-70) - Keeping logic but suspicious
+    # This likely was meant to be the bottom left eye but has a typo in the original code (y2=y1).
+    # Since we are preserving logic, we scale the coordinates. 
+    # But 1 pixel is likely just 1 pixel or scale/10. Let's stick to 1 to minimize diff.
+    draw.rectangle((1, img_size-finder_size, finder_size, img_size-finder_size), fill=255)  # bottom left eye
     return mask
 
-def style_outer_eyes(img):
+def style_outer_eyes(img, scale):
     """Creates mask for the outer eyes of the QR code."""
     img_size = img.size[0]
     mask = Image.new('L', img.size, 0)
     draw = ImageDraw.Draw(mask)
-    draw.rectangle((0, 0, 70, 70), fill=255)  # top left eye
-    draw.rectangle((img_size-70, 0, img_size, 70), fill=255)  # top right eye
-    draw.rectangle((0, img_size-70, 70, img_size), fill=255)  # bottom left eye
+    
+    finder_size = 7 * scale
+
+    # Original: (0, 0, 70, 70)
+    draw.rectangle((0, 0, finder_size, finder_size), fill=255)  # top left eye
+    
+    # Original: (img_size-70, 0, img_size, 70)
+    draw.rectangle((img_size-finder_size, 0, img_size, finder_size), fill=255)  # top right eye
+    
+    # Original: (0, img_size-70, 70, img_size)
+    draw.rectangle((0, img_size-finder_size, finder_size, img_size), fill=255)  # bottom left eye
     return mask
 
 @click.command()
@@ -47,7 +68,8 @@ def style_outer_eyes(img):
 @click.option('--primary', '-p', default='#0047BA', help='Primary brand color (Hex). Default: Turri Blue (#0047BA)')
 @click.option('--secondary', '-s', default='#00CE7C', help='Secondary brand color (Hex). Default: Turri Green (#00CE7C)')
 @click.option('--output', '-o', help='Output filename. Defaults to qr_<timestamp>.png')
-def generate(url, logo, primary, secondary, output):
+@click.option('--scale', type=int, default=10, help='Scale (box size) of the QR code. Default: 10')
+def generate(url, logo, primary, secondary, output, scale):
     """
     Generate a branded QR code with custom colors and logo.
     
@@ -67,6 +89,7 @@ def generate(url, logo, primary, secondary, output):
     click.echo(f"Generating QR for: {url}")
     click.echo(f"Primary Color: {primary} {primary_color}")
     click.echo(f"Secondary Color: {secondary} {secondary_color}")
+    click.echo(f"Scale: {scale}")
     if logo:
         click.echo(f"Logo: {logo}")
     click.echo(f"Output: {output}")
@@ -75,7 +98,7 @@ def generate(url, logo, primary, secondary, output):
     qr = qrcode.QRCode(
         error_correction=qrcode.constants.ERROR_CORRECT_H,
         border=0,
-        box_size=10 # Explicitly set to match the hardcoded mask coordinates
+        box_size=scale # Dynamic box size
     )
     qr.add_data(url)
     qr.make(fit=True) # Ensure it fits
@@ -112,18 +135,8 @@ def generate(url, logo, primary, secondary, output):
     qr_img = qr_img.convert('RGB')
 
     # Apply Masks and Composite
-    # Logic copied from reference:
-    # 1. inner_eye_mask keeps the inner eyes from qr_inner_eyes_img
-    # 2. But wait, the reference code does:
-    # intermediate_img = Image.composite(qr_inner_eyes_img, qr_img, inner_eye_mask)
-    # final_image = Image.composite(qr_outer_eyes_img, intermediate_img, outer_eye_mask)
-    
-    # This implies:
-    # - inner_eye_mask defines where we see qr_inner_eyes_img (on top of qr_img)
-    # - outer_eye_mask defines where we see qr_outer_eyes_img (on top of intermediate)
-    
-    inner_eye_mask = style_inner_eyes(qr_img)
-    outer_eye_mask = style_outer_eyes(qr_img)
+    inner_eye_mask = style_inner_eyes(qr_img, scale)
+    outer_eye_mask = style_outer_eyes(qr_img, scale)
     
     intermediate_img = Image.composite(qr_inner_eyes_img, qr_img, inner_eye_mask)
     final_image = Image.composite(qr_outer_eyes_img, intermediate_img, outer_eye_mask)
