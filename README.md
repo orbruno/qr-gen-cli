@@ -21,6 +21,7 @@ qrgen "https://example.com" [OPTIONS]
 *   -s, --secondary TEXT: Secondary brand color (Hex). Used for the main QR code pattern. Default: `#00CE7C`.
 *   -o, --output TEXT: Output filename. Defaults to `qr_<timestamp>.png`.
 *   --scale INTEGER: Scale (box size) of each QR module. Higher values produce larger, higher-resolution images. Default: `10`.
+*   --border INTEGER: Border size (quiet zone) in modules. Default: `0` (No border). Standard is 4.
 
 ### Example
 
@@ -30,6 +31,7 @@ qrgen "https://rainbowdrains.ca" \
   --secondary "#00b5e2" \
   --logo "./logo.png" \
   --scale 40 \
+  --border 4 \
   --output "rainbow_qr.png"
 ```
 
