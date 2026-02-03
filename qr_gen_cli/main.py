@@ -15,12 +15,15 @@ import os
 if not hasattr(Image, 'Resampling'):
     Image.Resampling = Image
 
-def hex_to_rgb(hex_color):
+
+def hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     """Convert hex color string to RGB tuple."""
     hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    r, g, b = (int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    return (r, g, b)
 
-def style_inner_eyes(img, scale, border):
+
+def style_inner_eyes(img: Image.Image, scale: int, border: int) -> Image.Image:
     """Creates mask for the inner eyes of the QR code."""
     img_size = img.size[0]
     mask = Image.new('L', img.size, 0)
@@ -96,7 +99,7 @@ def style_inner_eyes(img, scale, border):
     
     return mask
 
-def style_outer_eyes(img, scale, border):
+def style_outer_eyes(img: Image.Image, scale: int, border: int) -> Image.Image:
     """Creates mask for the outer eyes of the QR code."""
     img_size = img.size[0]
     mask = Image.new('L', img.size, 0)
@@ -126,10 +129,18 @@ def style_outer_eyes(img, scale, border):
 @click.option('--output', '-o', help='Output filename. Defaults to qr_<timestamp>.png')
 @click.option('--scale', type=int, default=10, help='Scale (box size) of the QR code. Default: 10')
 @click.option('--border', type=int, default=0, help='Border size (in modules). Default: 0 (No border)')
-def generate(url, logo, primary, secondary, output, scale, border):
+def generate(
+    url: str,
+    logo: str | None,
+    primary: str,
+    secondary: str,
+    output: str | None,
+    scale: int,
+    border: int
+) -> None:
     """
     Generate a branded QR code with custom colors and logo.
-    
+
     URL is the link to encode in the QR code.
     """
     try:
@@ -202,7 +213,7 @@ def generate(url, logo, primary, secondary, output, scale, border):
     final_image.save(output)
     click.echo(f"✓ QR generated successfully: {output}")
 
-def cli():
+def cli() -> None:
     generate()
 
 if __name__ == '__main__':
